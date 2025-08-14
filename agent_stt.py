@@ -20,20 +20,25 @@ from livekit.agents import (
     metrics,
 )
 from livekit.plugins import openai, silero, deepgram
+from google.cloud import translate_v2 as translate
 
 load_dotenv()
 
 logger = logging.getLogger("transcriber")
 
+translator = translate.Client()
 
 # This example demonstrates how to transcribe audio from a remote participant.
 # It creates agent session with only STT enabled and publishes transcripts to the room.
 
-async def translate_agent(text: str) -> str:
+async def translate_agent(text: str, target_language: str) -> str:
     # Here you would implement the translation logic, possibly calling an external API
     # For demonstration purposes, let's just return the text with a "translated" suffix
     # return f"<translated> {text} </translated>"
-    return text
+    translation = translator.translate(text, target_language=target_language, model="nmt")
+    transcript = translation['translatedText']
+
+    return transcript
 
 class Transcriber(Agent):
     def __init__(self):
@@ -46,7 +51,7 @@ class Transcriber(Agent):
             # ),
             stt=deepgram.STT(
                 model="nova-2-general",
-                language="vi",
+                language="en",
             ),
             # stt=deepgram.STT(model="nova-3", language="en"),
         )
@@ -98,7 +103,7 @@ async def entrypoint(ctx: JobContext):
             current_seg_id[seg_key] = seg_id
 
             # Translate transcript
-            translated_text = await translate_agent(ev.transcript)
+            translated_text = await translate_agent(ev.transcript, "vi")
             print(f"=== Segment ID: {seg_id} ===")
 
             # Publish 
