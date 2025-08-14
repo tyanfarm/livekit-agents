@@ -72,9 +72,12 @@ async def entrypoint(ctx: JobContext):
 
     user_audio_sid: str | None = None
     user_identity: str | None = None
-    current_seg_id = defaultdict(lambda: None)
+    seg_locks: dict[str, asyncio.Lock] = defaultdict(lambda: asyncio.Lock())
+    current_seg_id : dict[str, str | None] = defaultdict(lambda: None)
 
     @ctx.room.on("track_subscribed")
+    # TrackPublication - metadata of track
+    # RemoteParticipant - owner of track
     def on_track_subscribed(track: rtc.Track, pub: rtc.TrackPublication, participant: rtc.RemoteParticipant):
         nonlocal user_audio_sid, user_identity
         if track.kind == rtc.TrackKind.KIND_AUDIO:
@@ -86,38 +89,39 @@ async def entrypoint(ctx: JobContext):
             return
 
         # Save id of current segment
+        ## speaker_id will exist in diarization
         seg_key = track_sid or getattr(ev, "speaker_id", None) or "default"
-        seg_id = current_seg_id[seg_key] or str(uuid.uuid4())
-        current_seg_id[seg_key] = seg_id
 
-        # current_seg_id[track_sid] = str(uuid.uuid4())
+        async with seg_locks[seg_key]:
+            # Create ID one time until is_final=True
+            seg_id = current_seg_id[seg_key] or str(uuid.uuid4())
+            current_seg_id[seg_key] = seg_id
 
-        # Translate transcript
-        translated_text = await translate_agent(ev.transcript)
-        print(f"=== Segment ID: {seg_id} ===")
+            # Translate transcript
+            translated_text = await translate_agent(ev.transcript)
+            print(f"=== Segment ID: {seg_id} ===")
 
-        # Publish 
-        seg = rtc.TranscriptionSegment(
-            id=seg_id,
-            text=translated_text,
-            start_time=0,
-            end_time=0,
-            language="vi",
-            final=bool(ev.is_final)
-        )
+            # Publish 
+            seg = rtc.TranscriptionSegment(
+                id=seg_id,
+                text=translated_text,
+                start_time=0,
+                end_time=0,
+                language="vi",
+                final=bool(ev.is_final)
+            )
 
-        tr = rtc.Transcription(
-            participant_identity=participant_identity,
-            # participant_identity=user_identity or ctx.room.local_participant.identity,
-            track_sid=track_sid or "",
-            segments=[seg],
-        )
+            tr = rtc.Transcription(
+                participant_identity=participant_identity,
+                track_sid=track_sid or "",
+                segments=[seg],
+            )
 
-        await ctx.room.local_participant.publish_transcription(tr)
+            await ctx.room.local_participant.publish_transcription(tr)
 
-        # is_final == True --> reset id
-        if ev.is_final:
-            current_seg_id[seg_key] = None
+            # is_final == True --> reset id
+            if ev.is_final:
+                current_seg_id[seg_key] = None
 
     @session.on("user_input_transcribed")
     def on_user_input_transcribed(ev):
