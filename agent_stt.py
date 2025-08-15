@@ -28,6 +28,9 @@ logger = logging.getLogger("transcriber")
 
 translator = translate.Client()
 
+INPUT_LANGUAGE = "vi"
+OUTPUT_LANGUAGE = "en"
+
 # This example demonstrates how to transcribe audio from a remote participant.
 # It creates agent session with only STT enabled and publishes transcripts to the room.
 
@@ -51,7 +54,7 @@ class Transcriber(Agent):
             # ),
             stt=deepgram.STT(
                 model="nova-2-general",
-                language="en",
+                language=INPUT_LANGUAGE,
             ),
             # stt=deepgram.STT(model="nova-3", language="en"),
         )
@@ -103,7 +106,8 @@ async def entrypoint(ctx: JobContext):
             current_seg_id[seg_key] = seg_id
 
             # Translate transcript
-            translated_text = await translate_agent(ev.transcript, "vi")
+            translated_text = await translate_agent(ev.transcript, OUTPUT_LANGUAGE)
+            # translated_text = ev.transcript
             print(f"=== Segment ID: {seg_id} ===")
 
             # Publish 

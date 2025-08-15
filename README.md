@@ -1,17 +1,14 @@
 # livekit-agents
 
 ## setup:
-
+- Windows: 
 ```bash
-python -m venv venv
-source venv/bin/activate
+python -m venv livekit-env
+livekit-env\Scripts\activate
 ```
 
 ```bash
-pip install \
-  "livekit-agents[deepgram,openai,cartesia,silero,turn-detector]~=1.0" \
-  "livekit-plugins-noise-cancellation~=0.2" \
-  "python-dotenv"
+pip install -r requirements.txt
 ```
 
 ## run inside your terminal
@@ -43,5 +40,9 @@ pip install \
   ```
 
 # Command for authenticate Google cloud API
-$env:GOOGLE_APPLICATION_CREDENTIALS="./key.json"
-gcloud auth application-default print-access-token
+- Windows:
+
+  ```bash
+  $env:GOOGLE_APPLICATION_CREDENTIALS="./key.json"
+  gcloud auth application-default print-access-token
+  ```
